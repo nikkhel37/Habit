@@ -1,0 +1,19 @@
+
+{
+  "name": "HabitNexus",
+  "short_name": "HabitNexus",
+  "description": "Production-grade habit tracking application with focus sessions.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#3b82f6",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3247/3247225.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

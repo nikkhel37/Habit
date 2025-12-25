@@ -1,0 +1,5 @@
+{
+  "name": "HabitNexus",
+  "description": "A production-grade habit tracking application with offline-first persistence, advanced analytics, and multi-mode habit tracking (Yes/No, Count, Time). Designed with a mobile-first, clean architecture.",
+  "requestFramePermissions": []
+}
