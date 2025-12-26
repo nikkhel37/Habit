@@ -1,7 +1,7 @@
 
 import { AppState } from './types';
 
-const STORAGE_KEY = 'habitnexus_v1_data';
+export const STORAGE_KEY = 'habitnexus_v1_data';
 
 const DEFAULT_STATE: AppState = {
   habits: [],
@@ -10,7 +10,13 @@ const DEFAULT_STATE: AppState = {
     { id: 'morning', name: 'Morning Routine', icon: '🌅', habits: [] },
     { id: 'evening', name: 'Evening Routine', icon: '🌙', habits: [] }
   ],
-  categories: [],
+  categories: [
+    { id: 'cat-health', name: 'Health', color: '#10b981' },
+    { id: 'cat-work', name: 'Productivity', color: '#3b82f6' },
+    { id: 'cat-personal', name: 'Self-Care', color: '#f472b6' },
+    { id: 'cat-finance', name: 'Finance', color: '#f59e0b' },
+    { id: 'cat-mind', name: 'Mindset', color: '#8b5cf6' }
+  ],
   settings: {
     darkMode: false,
     weekStart: 1,
@@ -25,14 +31,14 @@ export const loadState = (): AppState => {
     
     const parsed = JSON.parse(saved);
     
-    // Safety merge: ensure settings and other top-level keys exist
     return {
       ...DEFAULT_STATE,
       ...parsed,
       settings: {
         ...DEFAULT_STATE.settings,
         ...(parsed.settings || {})
-      }
+      },
+      categories: parsed.categories?.length ? parsed.categories : DEFAULT_STATE.categories
     };
   } catch (e) {
     console.error('Failed to load state', e);
@@ -46,4 +52,8 @@ export const saveState = (state: AppState) => {
   } catch (e) {
     console.error('Failed to save state', e);
   }
+};
+
+export const clearState = () => {
+  localStorage.removeItem(STORAGE_KEY);
 };

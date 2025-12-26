@@ -1,14 +1,16 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Habit, HabitType, HabitRecord } from '../types';
+import { Habit, HabitType, HabitRecord, Category } from '../types';
 import { HABIT_ICONS } from '../constants';
-import { Check, Trophy, Play, Pause, RotateCcw, Coffee, Zap } from 'lucide-react';
+import { Check, Trophy, Play, Pause, RotateCcw, Coffee, Zap, FastForward } from 'lucide-react';
 
 interface HabitCardProps {
   habit: Habit;
   record?: HabitRecord;
   onUpdate: (value: number) => void;
+  onToggleSkip: () => void;
   streak: number;
+  categories: Category[];
 }
 
 enum PomoStatus {
@@ -17,9 +19,11 @@ enum PomoStatus {
   BREAK = 'BREAK'
 }
 
-const HabitCard: React.FC<HabitCardProps> = ({ habit, record, onUpdate, streak }) => {
+const HabitCard: React.FC<HabitCardProps> = ({ habit, record, onUpdate, onToggleSkip, streak, categories }) => {
   const Icon = HABIT_ICONS.find(i => i.id === habit.icon)?.icon || HABIT_ICONS[0].icon;
+  const category = categories.find(c => c.id === habit.categoryId);
   const currentValue = record?.value || 0;
+  const isSkipped = record?.isSkipped || false;
   
   const isCompleted = habit.type === HabitType.TIME 
     ? currentValue >= habit.targetValue 
@@ -47,7 +51,7 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, record, onUpdate, streak }
 
   // Logic for YES_NO and TIME (Simple countdown/accumulated timer)
   useEffect(() => {
-    if (isTimerRunning && habit.type === HabitType.TIME && !isCompleted) {
+    if (isTimerRunning && habit.type === HabitType.TIME && !isCompleted && !isSkipped) {
       timerRef.current = window.setInterval(() => {
         onUpdate(currentValue + 1);
       }, 1000);
@@ -57,11 +61,11 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, record, onUpdate, streak }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isTimerRunning, currentValue, habit.type, isCompleted, onUpdate]);
+  }, [isTimerRunning, currentValue, habit.type, isCompleted, isSkipped, onUpdate]);
 
   // Logic for POMODORO Engine
   useEffect(() => {
-    if (isTimerRunning && habit.type === HabitType.POMODORO) {
+    if (isTimerRunning && habit.type === HabitType.POMODORO && !isSkipped) {
       timerRef.current = window.setInterval(() => {
         setTimeLeft(prev => {
           if (prev <= 1) {
@@ -77,13 +81,12 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, record, onUpdate, streak }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [isTimerRunning, pomoStatus, habit.type]);
+  }, [isTimerRunning, pomoStatus, habit.type, isSkipped]);
 
   const handlePhaseComplete = () => {
     setIsTimerRunning(false);
     if (pomoStatus === PomoStatus.WORK) {
       onUpdate(currentValue + 1);
-      // Automatically switch to break if target not met
       if (habit.pomodoroConfig) {
         setPomoStatus(PomoStatus.BREAK);
         setTimeLeft(habit.pomodoroConfig.breakDuration);
@@ -102,7 +105,7 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, record, onUpdate, streak }
   };
 
   const startPomo = () => {
-    if (habit.pomodoroConfig) {
+    if (habit.pomodoroConfig && !isSkipped) {
       setPomoStatus(PomoStatus.WORK);
       setTimeLeft(habit.pomodoroConfig.workDuration);
       setIsTimerRunning(true);
@@ -116,6 +119,8 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, record, onUpdate, streak }
   };
 
   const renderProgress = () => {
+    if (isSkipped) return null;
+
     if (habit.type === HabitType.TIME) {
       const remaining = Math.max(0, habit.targetValue - currentValue);
       return (
@@ -132,9 +137,6 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, record, onUpdate, streak }
     }
 
     if (habit.type === HabitType.POMODORO) {
-      const totalWork = habit.pomodoroConfig?.workDuration || 1;
-      const pomoPercentage = (1 - timeLeft / totalWork) * 100;
-      
       return (
         <div className="mt-4 pt-4 border-t border-slate-50 dark:border-slate-800/50 animate-in slide-in-from-bottom-2">
           <div className="flex justify-between items-center mb-4">
@@ -172,14 +174,26 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, record, onUpdate, streak }
   };
 
   return (
-    <div className={`p-5 rounded-[2.5rem] bg-white dark:bg-slate-900 border transition-all duration-300 ${shouldAnimate ? 'animate-pop' : ''} ${isCompleted ? 'border-green-200 dark:border-green-900 shadow-lg shadow-green-50' : 'border-slate-200 dark:border-slate-800'}`}>
+    <div className={`p-5 rounded-[2.5rem] bg-white dark:bg-slate-900 border transition-all duration-300 relative overflow-hidden ${shouldAnimate ? 'animate-pop' : ''} ${isSkipped ? 'opacity-60 grayscale-[0.5] border-slate-100' : isCompleted ? 'border-green-200 dark:border-green-900 shadow-lg shadow-green-50' : 'border-slate-200 dark:border-slate-800'}`}>
+      {isSkipped && (
+        <div className="absolute top-2 right-12 text-[8px] font-black text-slate-400 uppercase tracking-widest pointer-events-none select-none">
+          Skip active
+        </div>
+      )}
+      
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white transition-all shadow-xl" style={{ backgroundColor: habit.color, transform: isCompleted ? 'rotate(360deg)' : 'none' }}>
+          <div className="w-14 h-14 rounded-2xl flex items-center justify-center text-white transition-all shadow-xl" style={{ backgroundColor: isSkipped ? '#94a3b8' : habit.color, transform: isCompleted && !isSkipped ? 'rotate(360deg)' : 'none' }}>
             {Icon}
           </div>
           <div>
-            <h3 className={`font-black tracking-tight ${isCompleted ? 'text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}>{habit.name}</h3>
+            {category && (
+              <div className="flex items-center gap-1 mb-1">
+                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: isSkipped ? '#94a3b8' : category.color }} />
+                <span className="text-[8px] font-black uppercase tracking-[0.2em] text-slate-400">{category.name}</span>
+              </div>
+            )}
+            <h3 className={`font-black tracking-tight ${isCompleted || isSkipped ? 'text-slate-400' : 'text-slate-800 dark:text-slate-100'}`}>{habit.name}</h3>
             <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-black uppercase tracking-widest mt-1">
               <Trophy className="w-3 h-3 text-amber-500" />
               <span>{streak} day streak</span>
@@ -187,29 +201,48 @@ const HabitCard: React.FC<HabitCardProps> = ({ habit, record, onUpdate, streak }
           </div>
         </div>
         
-        {habit.type === HabitType.POMODORO ? (
-          <div className="flex items-center gap-2">
-            {!isCompleted && pomoStatus === PomoStatus.IDLE && (
-              <button onClick={startPomo} className="w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xl active:scale-95 transition-all">
-                <Play className="w-6 h-6 ml-1" />
-              </button>
-            )}
-            {pomoStatus !== PomoStatus.IDLE && (
-              <button onClick={() => { setIsTimerRunning(false); setPomoStatus(PomoStatus.IDLE); setTimeLeft(0); }} className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center active:scale-95 transition-all">
-                <RotateCcw className="w-6 h-6" />
-              </button>
-            )}
-            {isCompleted && <div className="w-14 h-14 rounded-full bg-green-500 text-white flex items-center justify-center shadow-lg"><Check className="w-7 h-7" strokeWidth={4} /></div>}
-          </div>
-        ) : habit.type === HabitType.TIME ? (
-          <button onClick={() => setIsTimerRunning(!isTimerRunning)} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-xl active:scale-95 ${isTimerRunning ? 'bg-orange-500 text-white animate-pulse' : isCompleted ? 'bg-green-500 text-white' : 'bg-blue-600 text-white'}`}>
-            {isCompleted ? <Check className="w-7 h-7" strokeWidth={4} /> : isTimerRunning ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}
-          </button>
-        ) : (
-          <button onClick={() => onUpdate(isCompleted ? 0 : 1)} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 ${isCompleted ? 'bg-green-500 text-white shadow-xl' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
-            <Check className={`transition-all ${isCompleted ? 'w-7 h-7 scale-110' : 'w-6 h-6'}`} strokeWidth={4} />
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {!isCompleted && !isSkipped && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); onToggleSkip(); }}
+              className="w-10 h-10 rounded-full flex items-center justify-center text-slate-300 hover:text-slate-500 dark:hover:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all"
+              title="Skip for today"
+            >
+              <FastForward className="w-5 h-5" />
+            </button>
+          )}
+
+          {isSkipped ? (
+            <button 
+              onClick={onToggleSkip}
+              className="px-4 py-2 bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-black uppercase tracking-widest rounded-2xl active:scale-95 transition-all"
+            >
+              Resume
+            </button>
+          ) : habit.type === HabitType.POMODORO ? (
+            <div className="flex items-center gap-2">
+              {!isCompleted && pomoStatus === PomoStatus.IDLE && (
+                <button onClick={startPomo} className="w-14 h-14 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-xl active:scale-95 transition-all">
+                  <Play className="w-6 h-6 ml-1" />
+                </button>
+              )}
+              {pomoStatus !== PomoStatus.IDLE && (
+                <button onClick={() => { setIsTimerRunning(false); setPomoStatus(PomoStatus.IDLE); setTimeLeft(0); }} className="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-400 flex items-center justify-center active:scale-95 transition-all">
+                  <RotateCcw className="w-6 h-6" />
+                </button>
+              )}
+              {isCompleted && <div className="w-14 h-14 rounded-full bg-green-500 text-white flex items-center justify-center shadow-lg"><Check className="w-7 h-7" strokeWidth={4} /></div>}
+            </div>
+          ) : habit.type === HabitType.TIME ? (
+            <button onClick={() => setIsTimerRunning(!isTimerRunning)} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-xl active:scale-95 ${isTimerRunning ? 'bg-orange-500 text-white animate-pulse' : isCompleted ? 'bg-green-500 text-white' : 'bg-blue-600 text-white'}`}>
+              {isCompleted ? <Check className="w-7 h-7" strokeWidth={4} /> : isTimerRunning ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 ml-1" />}
+            </button>
+          ) : (
+            <button onClick={() => onUpdate(isCompleted ? 0 : 1)} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all active:scale-95 ${isCompleted ? 'bg-green-500 text-white shadow-xl' : 'bg-slate-100 dark:bg-slate-800 text-slate-400'}`}>
+              <Check className={`transition-all ${isCompleted ? 'w-7 h-7 scale-110' : 'w-6 h-6'}`} strokeWidth={4} />
+            </button>
+          )}
+        </div>
       </div>
 
       {renderProgress()}

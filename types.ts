@@ -1,6 +1,7 @@
 
 export enum HabitType {
   YES_NO = 'YES_NO',
+  COUNT = 'COUNT',
   TIME = 'TIME',
   POMODORO = 'POMODORO'
 }
@@ -35,8 +36,8 @@ export interface Reminder {
 }
 
 export interface PomodoroConfig {
-  workDuration: number; // seconds
-  breakDuration: number; // seconds
+  workDuration: number;
+  breakDuration: number;
 }
 
 export interface Habit {
@@ -46,9 +47,9 @@ export interface Habit {
   icon: string;
   color: string;
   type: HabitType;
-  targetValue: number; // For YES_NO = 1, for TIME = seconds, for POMODORO = target sessions
+  categoryId?: string;
+  targetValue: number;
   unit?: string;
-  pomodoroConfig?: PomodoroConfig;
   frequency: {
     type: FrequencyType;
     weekdays?: number[];
@@ -61,6 +62,7 @@ export interface Habit {
   isArchived: boolean;
   isPaused: boolean;
   createdAt: number;
+  pomodoroConfig?: PomodoroConfig;
 }
 
 export interface HabitRecord {
@@ -68,6 +70,8 @@ export interface HabitRecord {
   date: string;
   value: number;
   note?: string;
+  mood?: 'great' | 'good' | 'neutral' | 'bad';
+  isSkipped?: boolean;
 }
 
 export interface Routine {
